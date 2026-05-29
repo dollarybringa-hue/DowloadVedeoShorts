@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ShortSnap</title>
+
+  <style>
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+      font-family:Arial, Helvetica, sans-serif;
+    }
+
+    body{
+      background:#0f172a;
+      min-height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      color:white;
+      overflow:hidden;
+    }
+
+    .bg{
+      position:absolute;
+      width:600px;
+      height:600px;
+      background:linear-gradient(45deg,#ff004c,#6a00ff);
+      filter:blur(180px);
+      opacity:.25;
+      border-radius:50%;
+      top:-200px;
+      right:-100px;
+    }
+
+    .container{
+      width:95%;
+      max-width:850px;
+      background:rgba(255,255,255,0.05);
+      backdrop-filter:blur(18px);
+      border:1px solid rgba(255,255,255,0.1);
+      border-radius:28px;
+      padding:45px;
+      box-shadow:0 20px 60px rgba(0,0,0,.45);
+      position:relative;
+      z-index:2;
+    }
+
+    .logo{
+      font-size:55px;
+      font-weight:bold;
+      text-align:center;
+      margin-bottom:10px;
+      background:linear-gradient(90deg,#00d2ff,#ff4d6d);
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .subtitle{
+      text-align:center;
+      color:#cbd5e1;
+      margin-bottom:40px;
+      font-size:18px;
+    }
+
+    .input-box{
+      display:flex;
+      gap:15px;
+      margin-bottom:25px;
+      flex-wrap:wrap;
+    }
+
+    input{
+      flex:1;
+      padding:18px;
+      border:none;
+      outline:none;
+      border-radius:16px;
+      background:#1e293b;
+      color:white;
+      font-size:16px;
+    }
+
+    input::placeholder{
+      color:#94a3b8;
+    }
+
+    button{
+      padding:18px 30px;
+      border:none;
+      border-radius:16px;
+      background:linear-gradient(90deg,#00c6ff,#0072ff);
+      color:white;
+      font-size:16px;
+      cursor:pointer;
+      transition:.3s;
+      font-weight:bold;
+    }
+
+    button:hover{
+      transform:translateY(-2px) scale(1.02);
+      box-shadow:0 10px 25px rgba(0,114,255,.4);
+    }
+
+    .actions{
+      display:flex;
+      gap:15px;
+      justify-content:center;
+      margin-top:25px;
+      flex-wrap:wrap;
+    }
+
+    .card{
+      margin-top:35px;
+      background:#111827;
+      border-radius:22px;
+      overflow:hidden;
+      display:none;
+      animation:fade .4s ease;
+    }
+
+    @keyframes fade{
+      from{
+        opacity:0;
+        transform:translateY(10px);
+      }
+      to{
+        opacity:1;
+        transform:translateY(0);
+      }
+    }
+
+    .thumb{
+      width:100%;
+      height:340px;
+      object-fit:cover;
+    }
+
+    .content{
+      padding:25px;
+    }
+
+    .title{
+      font-size:24px;
+      margin-bottom:10px;
+      line-height:1.4;
+    }
+
+    .meta{
+      color:#94a3b8;
+      margin-bottom:25px;
+    }
+
+    .download-buttons{
+      display:flex;
+      gap:15px;
+      flex-wrap:wrap;
+    }
+
+    .secondary{
+      background:#1e293b;
+    }
+
+    .footer{
+      text-align:center;
+      margin-top:35px;
+      color:#64748b;
+      font-size:14px;
+    }
+
+    @media(max-width:700px){
+      .logo{
+        font-size:40px;
+      }
+
+      .container{
+        padding:25px;
+      }
+
+      .thumb{
+        height:220px;
+      }
+
+      .input-box{
+        flex-direction:column;
+      }
+
+      button{
+        width:100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="bg"></div>
+
+<div class="container">
+
+  <div class="logo">ShortSnap</div>
+
+  <div class="subtitle">
+    Modern YouTube Shorts Downloader
+  </div>
+
+  <div class="input-box">
+    <input
+      type="text"
+      id="url"
+      placeholder="Paste YouTube Shorts link here..."
+    />
+
+    <button onclick="getVideoInfo()">
+      Fetch Video
+    </button>
+  </div>
+
+  <div class="card" id="videoCard">
+
+    <img id="thumbnail" class="thumb" />
+
+    <div class="content">
+
+      <div class="title" id="title"></div>
+
+      <div class="meta" id="meta"></div>
+
+      <div class="download-buttons">
+
+        <button onclick="downloadVideo('mp4-hd')">
+          Download HD
+        </button>
+
+        <button class="secondary" onclick="downloadVideo('mp4-sd')">
+          Download SD
+        </button>
+
+        <button class="secondary" onclick="downloadVideo('mp3')">
+          Audio MP3
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="footer">
+    Powered by yt-dlp + Node.js
+  </div>
+
+</div>
+
+<script>
+
+let currentVideo = null;
+
+async function getVideoInfo(){
+
+  const url = document.getElementById("url").value;
+
+  if(!url){
+    alert("Paste a YouTube URL first");
+    return;
+  }
+
+  try{
+
+    const res = await fetch(
+      `/api/info?url=${encodeURIComponent(url)}`
+    );
+
+    const data = await res.json();
+
+    if(data.error){
+      alert(data.error);
+      return;
+    }
+
+    currentVideo = data;
+
+    document.getElementById("thumbnail").src = data.thumbnail;
+
+    document.getElementById("title").innerText = data.title;
+
+    document.getElementById("meta").innerText =
+      `${data.uploader} • ${data.view_count.toLocaleString()} views`;
+
+    document.getElementById("videoCard").style.display = "block";
+
+  }catch(err){
+    alert("Failed to fetch video");
+  }
+}
+
+function downloadVideo(type){
+
+  if(!currentVideo){
+    alert("Fetch video first");
+    return;
+  }
+
+  const url = document.getElementById("url").value;
+
+  window.open(
+    `/api/download?url=${encodeURIComponent(url)}&title=${encodeURIComponent(currentVideo.title)}&type=${type}`,
+    "_blank"
+  );
+}
+
+</script>
+
+</body>
+</html>
