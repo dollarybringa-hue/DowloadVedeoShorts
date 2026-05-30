@@ -3,7 +3,6 @@ const { exec } = require("child_process");
 const path = require("path");
 
 const app = express();
-const PORT = 3000;
 
 // ملفات الواجهة
 app.use(express.static(path.join(__dirname, "public")));
