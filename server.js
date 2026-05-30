@@ -1,5 +1,5 @@
 const express = require("express");
-const { exec } = require("child_process");
+const ytdl = require("@distube/ytdl-core");
 const path = require("path");
 
 const app = express();
@@ -21,7 +21,7 @@ function isValidYouTubeUrl(url) {
 }
 
 // API معلومات الفيديو
-app.get("/api/info", (req, res) => {
+app.get("/api/info", async (req, res) => {
 
   const url = req.query.url;
 
@@ -31,46 +31,32 @@ app.get("/api/info", (req, res) => {
     });
   }
 
-  const command =
-    `py -m yt_dlp --dump-json "${url}"`;
+  try {
 
-  exec(command, (error, stdout, stderr) => {
+    const info = await ytdl.getInfo(url);
+    const details = info.videoDetails;
 
-    if (error) {
+    res.json({
+      title: details.title,
+      thumbnail: details.thumbnails[details.thumbnails.length - 1].url,
+      uploader: details.author.name,
+      view_count: details.viewCount
+    });
 
-      console.log(stderr);
+  } catch (err) {
 
-      return res.status(500).json({
-        error: "Could not retrieve video info"
-      });
+    console.error(err);
 
-    }
+    res.status(500).json({
+      error: "Could not retrieve video info"
+    });
 
-    try {
-
-      const data = JSON.parse(stdout);
-
-      res.json({
-        title: data.title,
-        thumbnail: data.thumbnail,
-        uploader: data.uploader,
-        view_count: data.view_count
-      });
-
-    } catch {
-
-      res.status(500).json({
-        error: "JSON parse error"
-      });
-
-    }
-
-  });
+  }
 
 });
 
 // API تحميل الفيديو
-app.get("/api/download", (req, res) => {
+app.get("/api/download", async (req, res) => {
 
   const url = req.query.url;
   const type = req.query.type || "mp4-hd";
@@ -79,30 +65,27 @@ app.get("/api/download", (req, res) => {
     return res.status(400).send("Invalid URL");
   }
 
-  let format = "best";
+  try {
 
-  if (type === "mp3") {
-    format = "bestaudio";
-  }
+    const info = await ytdl.getInfo(url);
 
-  const command =
-    `py -m yt_dlp -f "${format}" -g "${url}"`;
+    let format;
 
-  exec(command, (error, stdout, stderr) => {
-
-    if (error) {
-
-      console.log(stderr);
-
-      return res.status(500).send("Download failed");
-
+    if (type === "mp3") {
+      format = ytdl.chooseFormat(info.formats, { quality: "highestaudio" });
+    } else {
+      format = ytdl.chooseFormat(info.formats, { quality: "highestvideo" });
     }
 
-    const directUrl = stdout.trim();
+    res.redirect(format.url);
 
-    res.redirect(directUrl);
+  } catch (err) {
 
-  });
+    console.error(err);
+
+    res.status(500).send("Download failed");
+
+  }
 
 });
 
